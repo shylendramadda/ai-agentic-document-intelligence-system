@@ -4,7 +4,7 @@ An enterprise-grade document Q&A system built on retrieval-augmented generation 
 
 ## Features
 
-- **Multi-format ingestion**: PDF, TXT, CSV, and Excel file support
+- **Multi-format ingestion**: PDF, TXT, CSV, and Excel file support (`.xls` and `.xlsx`)
 - **Grounded retrieval**: TF-IDF + cosine similarity for stable, interpretable document matching
 - **Safety-first generation**: LLM answers are constrained to retrieved context; includes explicit "DO NOT HALLUCINATE" prompt
 - **REST API**: FastAPI backend with `/upload` and `/ask` endpoints
@@ -107,6 +107,8 @@ Add your credentials:
 GROQ_API_KEY=gsk_your_api_key_here
 GROQ_MODEL=llama-2-70b-chat
 ```
+
+The `requirements.txt` file includes `xlrd` for reading legacy `.xls` files and `openpyxl` for `.xlsx` files.
 
 **Note**: Never commit `.env` to version control. It's listed in `.gitignore`.
 

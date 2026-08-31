@@ -30,7 +30,7 @@ def render_logs():
         return
     log_text = "\n".join(st.session_state.logs[-10:])
     if log_text:
-        logs_placeholder.text_area("Recent Activity", log_text, height=200, disabled=True)
+        logs_placeholder.text_area("Recent Activity", log_text, height=400, disabled=True)
     else:
         logs_placeholder.caption("No logs yet.")
 

@@ -110,3 +110,14 @@ def test_empty_upload_is_rejected():
 
     assert response.status_code == 400
     assert response.json()["detail"] == "The selected file is empty"
+
+
+def test_upload_accepts_windows_encoded_csv():
+    content = "Name,Comment\nOperations,Annual review – complete\n".encode("cp1252")
+    response = client.post(
+        "/upload",
+        files={"file": ("business-operations-survey.csv", content, "text/csv")},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["chunks"] > 0

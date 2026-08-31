@@ -61,8 +61,15 @@ def read_excel_file(file_path: str) -> str:
 
 
 def read_csv_file(file_path: str) -> str:
-    dataframe = pd.read_csv(file_path)
-    return dataframe.to_string(index=False)
+    last_error = None
+    for encoding in ("utf-8-sig", "cp1252", "latin1"):
+        try:
+            dataframe = pd.read_csv(file_path, encoding=encoding)
+            return dataframe.to_string(index=False)
+        except UnicodeDecodeError as exc:
+            last_error = exc
+
+    raise ValueError(f"Unable to decode CSV file with supported encodings: {last_error}") from last_error
 
 
 def extract_document_text(file_path: str) -> str:
