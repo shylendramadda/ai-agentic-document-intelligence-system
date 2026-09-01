@@ -4,6 +4,16 @@ GitHub repository: https://github.com/shylendramadda/ai-agentic-document-intelli
 
 An enterprise-grade document Q&A system built on retrieval-augmented generation (RAG) with safety-first guardrails and lightweight agent orchestration. Designed for the Edureka AI Capstone project.
 
+## Screenshots
+
+### Dashboard
+
+![AI Agentic Document Intelligence dashboard](1.%20Dashboard.jpeg)
+
+### Answer and Supporting Sources
+
+![Grounded answer with supporting sources](2.%20Answer.jpeg)
+
 ## Features
 
 - **Multi-format ingestion**: PDF, TXT, CSV, and Excel file support (`.xls` and `.xlsx`)
