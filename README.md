@@ -1,5 +1,7 @@
 # AI Agentic Document Intelligence System
 
+GitHub repository: https://github.com/shylendramadda/ai-agentic-document-intelligence-system
+
 An enterprise-grade document Q&A system built on retrieval-augmented generation (RAG) with safety-first guardrails and lightweight agent orchestration. Designed for the Edureka AI Capstone project.
 
 ## Features
