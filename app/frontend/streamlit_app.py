@@ -56,6 +56,12 @@ def render_conversation_history():
                     st.write(conversation["question"])
                     st.markdown("**Answer**")
                     st.write(conversation["answer"])
+                    if conversation.get("sources"):
+                        st.markdown("**Supporting Sources**")
+                        for source in conversation["sources"]:
+                            source_name = source.get("source", "Unknown source")
+                            st.caption(source_name)
+                            st.write(source.get("content", "No source text available."))
                     if st.button("🗑️ Delete", key=f"delete_history_{conversation_index}"):
                         del st.session_state.conversation_history[conversation_index]
                         st.rerun()
@@ -289,6 +295,7 @@ with question_section:
                         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         "question": question_text,
                         "answer": payload.get("answer", "No answer generated."),
+                        "sources": payload.get("sources", []),
                     }
                     st.session_state.conversation_history = [
                         entry

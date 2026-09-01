@@ -115,7 +115,24 @@ def test_successful_question_creates_and_deduplicates_history(monkeypatch):
     assert len(history) == 1
     assert history[0]["answer"] == "Answer 2"
     assert history[0]["timestamp"]
+    assert history[0]["sources"] == [{"source": "policy.txt", "content": "Annual leave policy"}]
     assert app.session_state.latest_response["answer"] == "Answer 2"
+
+
+def test_history_displays_saved_supporting_sources():
+    app = make_app()
+    app.session_state["conversation_history"] = [
+        {
+            "timestamp": "2026-09-01 10:00:00",
+            "question": "What is the policy?",
+            "answer": "Annual leave is available.",
+            "sources": [{"source": "policy.txt", "content": "Annual leave policy"}],
+        }
+    ]
+    app.run()
+
+    assert any("policy.txt" in text.value for text in app.caption)
+    assert any("Annual leave policy" in text.value for text in app.markdown)
 
 
 def test_question_api_failure_does_not_add_history(monkeypatch):
