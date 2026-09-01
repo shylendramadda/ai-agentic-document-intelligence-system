@@ -1,3 +1,4 @@
+import re
 from typing import Any, Dict, List
 
 import requests
@@ -75,6 +76,19 @@ class DocumentAgent:
         except Exception:
             return context
 
+    def _format_extractive_answer(self, question: str, content: str) -> str:
+        sentences = [sentence.strip() for sentence in re.split(r"(?<=[.!?])\s+", content) if sentence.strip()]
+        analyzer = self.vector_store.vectorizer.build_analyzer()
+        query_terms = set(analyzer(question))
+        relevant_sentences = [
+            sentence
+            for sentence in sentences
+            if query_terms & set(analyzer(sentence))
+        ]
+        selected_sentences = relevant_sentences[:3] or sentences[:3]
+        formatted_sentences = "\n".join(f"- {sentence}" for sentence in selected_sentences)
+        return f"According to the uploaded document:\n\n{formatted_sentences}"
+
     def answer_question(self, question: str) -> Dict[str, Any]:
         context, contexts = self._grounded_context(question)
 
@@ -83,7 +97,7 @@ class DocumentAgent:
         elif settings.groq_api_key:
             answer = self._generate_with_groq(question, context)
         else:
-            answer = contexts[0]["content"]
+            answer = self._format_extractive_answer(question, contexts[0]["content"])
 
         return {
             "answer": answer,
