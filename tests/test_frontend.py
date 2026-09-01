@@ -27,7 +27,7 @@ def test_initial_ui_shows_empty_history_and_required_controls():
     app = make_app().run()
 
     assert not app.exception
-    assert app.text_input[0].label == "Enter your question"
+    assert app.text_area[0].label == "Enter your question"
     assert any(button.label == "Upload & Index" for button in app.button)
     assert any(button.label == "Submit Question" for button in app.button)
     assert app.session_state.conversation_history == []
@@ -42,7 +42,7 @@ def test_empty_question_is_logged_without_http_request(monkeypatch):
 
     monkeypatch.setattr("requests.post", fail_request)
     app = make_app().run()
-    app.text_input[0].set_value("   ")
+    app.text_area[0].set_value("   ")
     app.button(key="FormSubmitter:question_form-Submit Question").click().run()
 
     assert calls == []
@@ -107,7 +107,7 @@ def test_successful_question_creates_and_deduplicates_history(monkeypatch):
     submit_key = "FormSubmitter:question_form-Submit Question"
 
     for _ in range(2):
-        app.text_input[0].set_value("What is the leave policy?")
+        app.text_area[0].set_value("What is the leave policy?")
         app.button(key=submit_key).click().run()
 
     history = app.session_state.conversation_history
@@ -141,7 +141,7 @@ def test_question_api_failure_does_not_add_history(monkeypatch):
         lambda *args, **kwargs: FakeResponse(404, {"detail": "Not Found"}),
     )
     app = make_app().run()
-    app.text_input[0].set_value("What is the policy?")
+    app.text_area[0].set_value("What is the policy?")
     app.button(key="FormSubmitter:question_form-Submit Question").click().run()
 
     assert app.session_state.conversation_history == []
@@ -181,6 +181,7 @@ def test_clear_session_resets_documents_history_answer_and_logs(monkeypatch):
     app.run()
 
     next(button for button in app.button if button.label == "🔄 Clear Session").click().run()
+    next(button for button in app.button if button.label == "Confirm Clear").click().run()
 
     assert app.session_state.uploaded_documents == []
     assert app.session_state.conversation_history == []

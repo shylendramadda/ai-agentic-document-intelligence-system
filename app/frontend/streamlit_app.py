@@ -21,6 +21,15 @@ if "conversation_history" not in st.session_state:
 if "latest_response" not in st.session_state:
     st.session_state.latest_response = None
 
+if "pending_toast" not in st.session_state:
+    st.session_state.pending_toast = None
+
+if "clear_session_error" not in st.session_state:
+    st.session_state.clear_session_error = None
+
+if "clear_session_completed" not in st.session_state:
+    st.session_state.clear_session_completed = False
+
 logs_placeholder = None
 conversation_placeholder = None
 
@@ -50,7 +59,8 @@ def render_conversation_history():
                 if len(conversation["question"]) > 45:
                     question_preview += "..."
                 timestamp = conversation.get("timestamp", "Previous")
-                with st.expander(f"{index}. {timestamp}  ·  {question_preview}"):
+                with st.container(border=True):
+                    st.markdown(f"**{index}. {timestamp}**  ·  {question_preview}")
                     st.caption(timestamp)
                     st.markdown("**Question**")
                     st.write(conversation["question"])
@@ -64,6 +74,7 @@ def render_conversation_history():
                             st.write(source.get("content", "No source text available."))
                     if st.button("🗑️ Delete", key=f"delete_history_{conversation_index}"):
                         del st.session_state.conversation_history[conversation_index]
+                        st.session_state.pending_toast = "Conversation deleted."
                         st.rerun()
         else:
             st.caption("No questions asked yet.")
@@ -78,12 +89,96 @@ def log_action(action: str, status: str, message: str = ""):
     st.session_state.logs.append(log_entry)
     render_logs()
 
+
+def execute_clear_session():
+    try:
+        reset_response = requests.post(f"{API_BASE_URL}/reset", timeout=30)
+        if not reset_response.ok:
+            error_msg = reset_response.json().get("detail", "Backend reset failed")
+            raise requests.RequestException(f"HTTP {reset_response.status_code}: {error_msg}")
+
+        st.session_state.uploaded_documents = []
+        st.session_state.selected_file = None
+        st.session_state.conversation_history = []
+        st.session_state.latest_response = None
+        st.session_state.logs = []
+        log_action("Session Reset", "INFO")
+        st.session_state.pending_toast = "Session cleared!"
+        st.session_state.clear_session_completed = True
+    except requests.RequestException as exc:
+        st.session_state.clear_session_error = str(exc)
+
+
+@st.dialog("Clear Session?")
+def confirm_clear_session():
+    st.warning("This will delete uploaded documents, indexed content, conversation history, and logs.")
+    if st.session_state.get("clear_session_error"):
+        st.error(f"Could not clear the backend session: {st.session_state.clear_session_error}")
+    st.button("Confirm Clear", use_container_width=True, key="confirm_clear_session_button", on_click=execute_clear_session)
+
+    if st.button("Cancel", use_container_width=True, key="cancel_clear_session_button"):
+        st.rerun()
+
+    if st.session_state.clear_session_completed:
+        st.session_state.clear_session_completed = False
+        st.rerun()
+
 # Page configuration
 st.set_page_config(page_title="AI Document Intelligence System", page_icon="📄")
+if st.session_state.pending_toast:
+    st.toast(st.session_state.pending_toast, icon="✅")
+    st.session_state.pending_toast = None
+
 st.markdown(
     """
     <style>
         .block-container { padding-top: 1.5rem; padding-bottom: 1rem; }
+        section[data-testid="stSidebar"][aria-expanded="true"],
+        section[data-testid="stSidebar"][aria-expanded="true"] > div {
+            width: 30rem !important;
+        }
+        section[data-testid="stSidebar"][aria-expanded="false"] {
+            width: 0 !important;
+            min-width: 0 !important;
+        }
+        section[data-testid="stSidebar"][aria-expanded="false"] > div {
+            width: 0 !important;
+            min-width: 0 !important;
+            overflow: hidden !important;
+        }
+        section[data-testid="stSidebar"] > div:first-child { padding-top: 0.15rem !important; }
+        [data-testid="stSidebarCollapseButton"],
+        [data-testid="stSidebarCollapseButton"] button,
+        [data-testid="stSidebarCollapsedControl"],
+        [data-testid="stSidebarCollapsedControl"] button {
+            margin: 0 !important;
+            padding: 0 !important;
+            top: 0 !important;
+        }
+        [data-testid="stSidebarCollapseButton"],
+        [data-testid="stSidebarCollapseButton"] button,
+        [data-testid="stSidebarCollapsedControl"],
+        [data-testid="stSidebarCollapsedControl"] button {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        [data-testid="stSidebarCollapsedControl"] button {
+            background-color: #15803d !important;
+            color: #166534 !important;
+            border: 1px solid #86efac !important;
+        }
+        [data-testid="stSidebarCollapsedControl"] button svg {
+            fill: #166534 !important;
+            color: #166534 !important;
+        }
+        [data-testid="stSidebarCollapsedControl"] {
+            padding-top: 0.75rem !important;
+        }
+        [data-testid="stSidebarCollapsedControl"] button {
+            background-color: #dcfce7 !important;
+        }
+        section[data-testid="stSidebar"] h2 { text-align: left; margin-top: 0 !important; }
         h1 { font-size: 1.8rem !important; }
         h2, h3 { margin-top: 0.6rem !important; margin-bottom: 0.35rem !important; }
         [data-testid="stCaptionContainer"] { margin-bottom: 0.25rem; }
@@ -105,6 +200,71 @@ st.markdown(
             background: #f8fafc;
             font-size: 0.78rem;
         }
+        .uploaded-file-chip:hover {
+            color: #15803d !important;
+            border-color: #15803d !important;
+        }
+        div[data-testid="stFileUploader"] label:hover,
+        div[data-testid="stFileUploader"] label:hover p,
+        div[data-testid="stFileUploader"] label:hover span {
+            color: #15803d !important;
+        }
+        div[data-testid="stFileUploader"] section:hover,
+        div[data-testid="stFileUploader"] [data-testid="stFileUploaderDropzone"]:hover,
+        div[data-testid="stFileUploader"] button:hover {
+            border-color: #15803d !important;
+        }
+        div[data-testid="stFileUploader"] section:hover,
+        div[data-testid="stFileUploader"] section:focus-within,
+        div[data-testid="stFileUploader"] [data-testid="stFileUploaderDropzone"]:hover,
+        div[data-testid="stFileUploader"] [data-testid="stFileUploaderDropzone"]:focus-within,
+        div[data-testid="stFileUploader"] button:hover,
+        div[data-testid="stFileUploader"] button:focus,
+        div[data-testid="stFileUploader"] button:focus-visible,
+        div[data-testid="stButton"] button:hover,
+        div[data-testid="stButton"] button:focus,
+        div[data-testid="stButton"] button:focus-visible {
+            border-color: #15803d !important;
+            outline-color: #15803d !important;
+            box-shadow: 0 0 0 1px #15803d !important;
+        }
+        div[data-testid="stFormSubmitButton"] button:hover,
+        div[data-testid="stFormSubmitButton"] button:focus,
+        div[data-testid="stFormSubmitButton"] button:focus-visible {
+            border-color: #15803d !important;
+            outline-color: #15803d !important;
+            box-shadow: 0 0 0 1px #15803d !important;
+        }
+        div[data-testid="stFormSubmitButton"] button:hover,
+        div[data-testid="stFormSubmitButton"] button:focus,
+        div[data-testid="stFormSubmitButton"] button:focus-visible,
+        div[data-testid="stFormSubmitButton"] button:hover p,
+        div[data-testid="stFormSubmitButton"] button:focus p {
+            color: #15803d !important;
+        }
+        div[data-testid="stTextArea"] textarea:hover,
+        div[data-testid="stTextArea"] textarea:focus,
+        div[data-testid="stTextArea"] textarea:focus-visible {
+            border-color: #15803d !important;
+            outline-color: #15803d !important;
+            box-shadow: 0 0 0 1px #15803d !important;
+        }
+        div[data-testid="stTextArea"] div[data-baseweb="textarea"],
+        div[data-testid="stTextArea"] div[data-baseweb="textarea"] > div,
+        div[data-testid="stTextArea"] div[data-baseweb="textarea"]:hover,
+        div[data-testid="stTextArea"] div[data-baseweb="textarea"]:focus-within,
+        div[data-testid="stTextArea"] div[data-baseweb="textarea"]:focus-within > div {
+            border-color: #15803d !important;
+            outline-color: #15803d !important;
+            box-shadow: 0 0 0 1px #15803d !important;
+        }
+        section[data-testid="stSidebar"] p:hover,
+        section[data-testid="stSidebar"] span:hover,
+        section[data-testid="stSidebar"] label:hover,
+        section[data-testid="stSidebar"] a:hover,
+        section[data-testid="stSidebar"] button:hover {
+            color: #15803d !important;
+        }
     </style>
     """,
     unsafe_allow_html=True,
@@ -124,69 +284,6 @@ with st.sidebar:
         """
     )
 
-    with st.expander("📁 Uploaded Files", expanded=True):
-        if st.session_state.uploaded_documents:
-            file_chips = "".join(
-                f'<span class="uploaded-file-chip">✓ {escape(file_name)}</span>'
-                for file_name in st.session_state.uploaded_documents
-            )
-            st.markdown(
-                f'<div class="uploaded-files-scroll">{file_chips}</div>',
-                unsafe_allow_html=True,
-            )
-        else:
-            st.caption("No files uploaded yet.")
-
-    st.subheader("💬 Conversation History")
-    if st.button(
-        "🗑️ Delete all history",
-        key="delete_all_history",
-        use_container_width=True,
-        disabled=not st.session_state.conversation_history,
-    ):
-        st.session_state.conversation_history = []
-        st.rerun()
-    conversation_placeholder = st.container(height=240, border=True)
-    render_conversation_history()
-
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("🔄 Clear Session", use_container_width=True):
-            try:
-                reset_response = requests.post(f"{API_BASE_URL}/reset", timeout=30)
-                if not reset_response.ok:
-                    error_msg = reset_response.json().get("detail", "Backend reset failed")
-                    raise requests.RequestException(f"HTTP {reset_response.status_code}: {error_msg}")
-
-                st.session_state.uploaded_documents = []
-                st.session_state.selected_file = None
-                st.session_state.conversation_history = []
-                st.session_state.latest_response = None
-                st.session_state.logs = []
-                log_action("Session Reset", "INFO")
-                st.toast("Session cleared!", icon="✅")
-                st.rerun()
-            except requests.RequestException as exc:
-                log_action("Session Reset Failed", "ERROR", str(exc))
-                st.toast("✗ Could not clear the backend session", icon="❌")
-
-    with col2:
-        if st.button("📋 Show Logs", use_container_width=True):
-            st.session_state.show_logs = not st.session_state.get("show_logs", False)
-
-    # Display logs if enabled
-    if st.session_state.get("show_logs", False):
-        st.subheader("Activity Logs")
-        logs_placeholder = st.empty()
-        render_logs()
-
-# Main content area
-st.divider()
-
-upload_section, question_section = st.columns([1, 1], gap="medium")
-
-# Upload section
-with upload_section:
     st.subheader("📤 Upload Document")
     uploaded_file = st.file_uploader("Choose a document", type=["pdf", "txt", "csv", "xlsx", "xls"])
     if uploaded_file is not None:
@@ -202,71 +299,102 @@ with upload_section:
             file_name = selected_file["name"]
             file_content = selected_file["content"]
             log_action(f"Upload Started: {file_name}", "INFO")
-            
-            # Progress bar during upload
             progress_bar = st.progress(0)
             status_text = st.empty()
-            
+
             try:
                 status_text.text("📤 Uploading file...")
                 progress_bar.progress(25)
-                
-                files = {
-                    "file": (file_name, file_content, selected_file["content_type"])
-                }
-                
+                files = {"file": (file_name, file_content, selected_file["content_type"])}
                 status_text.text("⏳ Processing and indexing...")
                 progress_bar.progress(50)
-                
                 response = requests.post(f"{API_BASE_URL}/upload", files=files, timeout=120)
-                
                 progress_bar.progress(75)
-                
+
                 if response.ok:
                     data = response.json()
                     progress_bar.progress(100)
-                    
                     if file_name not in st.session_state.uploaded_documents:
                         st.session_state.uploaded_documents.append(file_name)
-                    
                     message = f"{data.get('message', 'Upload successful')} ({data.get('chunks', 0)} chunks)"
                     log_action(f"Upload Complete: {file_name}", "SUCCESS", f"{data.get('chunks', 0)} chunks indexed")
-                    st.toast(f"✓ {message}", icon="✅")
-                    
-                    # Clear progress indicators
+                    st.session_state.pending_toast = message
                     progress_bar.empty()
                     status_text.empty()
                     st.rerun()
                 else:
-                    progress_bar.progress(100)
-                    error_msg = response.json().get('detail', 'Unknown error')
+                    error_msg = response.json().get("detail", "Unknown error")
                     log_action(f"Upload Failed: {file_name}", "ERROR", error_msg)
                     st.toast(f"✗ Upload failed: {error_msg}", icon="❌")
-                    
-                    # Clear progress indicators
                     progress_bar.empty()
                     status_text.empty()
-                    
             except requests.exceptions.Timeout:
                 log_action(f"Upload Timeout: {file_name}", "ERROR", "Request timeout (120s)")
                 st.toast("✗ Upload timeout - file may be too large", icon="⏱️")
                 progress_bar.empty()
                 status_text.empty()
-            except Exception as e:
-                log_action(f"Upload Error: {file_name}", "ERROR", str(e))
-                st.toast(f"✗ Error: {str(e)}", icon="❌")
+            except Exception as exc:
+                log_action(f"Upload Error: {file_name}", "ERROR", str(exc))
+                st.toast(f"✗ Error: {str(exc)}", icon="❌")
                 progress_bar.empty()
                 status_text.empty()
         else:
             st.warning("Please select a file first.")
             log_action("Upload Attempted", "WARNING", "No file selected")
 
+    with st.expander("📁 Uploaded Files", expanded=False):
+        if st.session_state.uploaded_documents:
+            file_chips = "".join(
+                f'<span class="uploaded-file-chip">✓ {escape(file_name)}</span>'
+                for file_name in st.session_state.uploaded_documents
+            )
+            st.markdown(
+                f'<div class="uploaded-files-scroll">{file_chips}</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.caption("No files uploaded yet.")
+
+    with st.expander("💬 Conversation History", expanded=False):
+        if st.session_state.conversation_history:
+            if st.button("🗑️ Delete all history", key="delete_all_history", use_container_width=True):
+                st.session_state.conversation_history = []
+                st.session_state.pending_toast = "Conversation history cleared."
+                st.rerun()
+        conversation_placeholder = st.container(height=240, border=True)
+        render_conversation_history()
+
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("🔄 Clear Session", use_container_width=True):
+            confirm_clear_session()
+
+    with col2:
+        if st.button("📋 Show Logs", use_container_width=True):
+            st.session_state.show_logs = not st.session_state.get("show_logs", False)
+
+    # Display logs if enabled
+    if st.session_state.get("show_logs", False):
+        st.subheader("Activity Logs")
+        logs_placeholder = st.empty()
+        render_logs()
+
+# Main content area
+st.divider()
+
 # Question section
-with question_section:
+with st.container():
     st.subheader("❓ Ask a Question")
     with st.form("question_form", clear_on_submit=True, border=False):
-        question = st.text_input("Enter your question", placeholder="Ask anything about the uploaded document...")
-        submitted = st.form_submit_button("Submit Question", use_container_width=True)
+        question_col, submit_col = st.columns([5, 1], vertical_alignment="bottom")
+        with question_col:
+            question = st.text_area(
+                "Enter your question",
+                placeholder="Ask anything about the uploaded document...",
+                height=120,
+            )
+        with submit_col:
+            submitted = st.form_submit_button("Submit Question", use_container_width=True)
 
     if submitted:
         if question.strip():
@@ -304,7 +432,7 @@ with question_section:
                     ]
                     st.session_state.conversation_history.append(history_entry)
                     log_action("Answer Generated", "SUCCESS", f"{retrieved_chunks} chunks retrieved")
-                    st.toast("✓ Answer generated successfully!", icon="✅")
+                    st.session_state.pending_toast = "Answer generated successfully!"
                     
                     # Clear progress indicators
                     progress_bar.empty()
