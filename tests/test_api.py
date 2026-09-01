@@ -121,3 +121,13 @@ def test_upload_accepts_windows_encoded_csv():
 
     assert response.status_code == 200
     assert response.json()["chunks"] > 0
+
+
+def test_upload_does_not_write_outside_upload_directory():
+    response = client.post(
+        "/upload",
+        files={"file": ("../outside.txt", b"Safe upload content.", "text/plain")},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["filename"] == "../outside.txt"

@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from uuid import uuid4
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
@@ -39,7 +40,8 @@ async def upload_document(file: UploadFile = File(...)):
     if len(content) > max_size:
         raise HTTPException(status_code=413, detail=f"File exceeds the maximum size of {settings.max_upload_size_mb}MB")
 
-    destination_path = Path(settings.upload_dir) / file.filename
+    safe_filename = Path(file.filename).name
+    destination_path = Path(settings.upload_dir) / f"{uuid4().hex}_{safe_filename}"
     destination_path.parent.mkdir(parents=True, exist_ok=True)
     with open(destination_path, "wb") as target_file:
         target_file.write(content)

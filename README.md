@@ -24,7 +24,7 @@ User Question → [Retrieval Agent] → Similarity Search → Top Chunks
                                               ↓
                         [Grounded Context] + LLM Prompt + Safety Guardrail
                                               ↓
-                                    Groq API (llama-2-70b-chat)
+                                    Groq API (openai/gpt-oss-120b)
                                               ↓
                                         Grounded Answer + Sources
 ```
@@ -105,7 +105,7 @@ notepad .env
 Add your credentials:
 ```ini
 GROQ_API_KEY=gsk_your_api_key_here
-GROQ_MODEL=llama-2-70b-chat
+GROQ_MODEL=openai/gpt-oss-120b
 ```
 
 The `requirements.txt` file includes `xlrd` for reading legacy `.xls` files and `openpyxl` for `.xlsx` files.
