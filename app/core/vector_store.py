@@ -1,16 +1,44 @@
+import json
+from pathlib import Path
 from typing import List
 
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
+from app.core.config import settings
+
 
 class VectorKnowledgeStore:
-    def __init__(self):
+    def __init__(self, index_dir: str | Path | None = None):
         self.documents: List[str] = []
         self.metadata: List[dict] = []
         self.vectorizer = TfidfVectorizer(stop_words="english")
         self.matrix = None
+        self.index_path = Path(index_dir or settings.index_dir) / "documents.json"
+        self._load()
+
+    def _rebuild_matrix(self):
+        self.vectorizer = TfidfVectorizer(stop_words="english")
+        self.matrix = self.vectorizer.fit_transform(self.documents) if self.documents else None
+
+    def _load(self):
+        if not self.index_path.exists():
+            return
+        with self.index_path.open("r", encoding="utf-8") as index_file:
+            payload = json.load(index_file)
+        self.documents = payload.get("documents", [])
+        self.metadata = payload.get("metadata", [])
+        if len(self.documents) != len(self.metadata):
+            raise ValueError("Persisted document index has mismatched documents and metadata")
+        self._rebuild_matrix()
+
+    def _save(self):
+        self.index_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary_path = self.index_path.with_suffix(".tmp")
+        with temporary_path.open("w", encoding="utf-8") as index_file:
+            json.dump({"documents": self.documents, "metadata": self.metadata}, index_file)
+        temporary_path.replace(self.index_path)
 
     def add_documents(self, documents: List[str], metadata_list: List[dict] | None = None):
         metadata_list = metadata_list or [{} for _ in documents]
@@ -27,8 +55,8 @@ class VectorKnowledgeStore:
 
         self.documents.extend(documents)
         self.metadata.extend(metadata_list)
-        if self.documents:
-            self.matrix = self.vectorizer.fit_transform(self.documents)
+        self._rebuild_matrix()
+        self._save()
         return [f"doc_{idx}" for idx in range(len(self.documents))]
 
     def query(self, question: str, top_k: int = 4):
@@ -64,3 +92,5 @@ class VectorKnowledgeStore:
         self.metadata = []
         self.matrix = None
         self.vectorizer = TfidfVectorizer(stop_words="english")
+        if self.index_path.exists():
+            self.index_path.unlink()
