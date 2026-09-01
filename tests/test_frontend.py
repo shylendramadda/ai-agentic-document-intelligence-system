@@ -147,7 +147,8 @@ def test_single_history_delete_and_delete_all():
     assert app.session_state.conversation_history == []
 
 
-def test_clear_session_resets_documents_history_answer_and_logs():
+def test_clear_session_resets_documents_history_answer_and_logs(monkeypatch):
+    monkeypatch.setattr("requests.post", lambda *args, **kwargs: FakeResponse(200, {}))
     app = make_app()
     app.session_state["uploaded_documents"] = ["policy.txt"]
     app.session_state["conversation_history"] = [

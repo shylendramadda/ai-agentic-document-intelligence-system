@@ -80,6 +80,12 @@ async def ask_question(payload: dict):
     return result
 
 
+@app.post("/reset")
+async def reset_index():
+    agent.reset()
+    return {"status": "ok", "message": "Document index reset successfully."}
+
+
 @app.exception_handler(HTTPException)
 async def http_exception_handler(_, exc):
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})

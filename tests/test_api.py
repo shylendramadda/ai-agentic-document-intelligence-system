@@ -112,6 +112,21 @@ def test_empty_upload_is_rejected():
     assert response.json()["detail"] == "The selected file is empty"
 
 
+def test_reset_clears_indexed_documents():
+    upload = client.post(
+        "/upload",
+        files={"file": ("reset-check.txt", b"Reset check document content.", "text/plain")},
+    )
+    assert upload.status_code == 200
+
+    reset = client.post("/reset")
+    assert reset.status_code == 200
+
+    question = client.post("/ask", json={"question": "What is in the reset check document?"})
+    assert question.status_code == 200
+    assert question.json()["sources"] == []
+
+
 def test_upload_accepts_windows_encoded_csv():
     content = "Name,Comment\nOperations,Annual review – complete\n".encode("cp1252")
     response = client.post(

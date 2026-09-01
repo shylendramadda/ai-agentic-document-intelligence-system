@@ -146,14 +146,23 @@ with st.sidebar:
     col1, col2 = st.columns(2)
     with col1:
         if st.button("🔄 Clear Session", use_container_width=True):
-            st.session_state.uploaded_documents = []
-            st.session_state.selected_file = None
-            st.session_state.conversation_history = []
-            st.session_state.latest_response = None
-            st.session_state.logs = []
-            log_action("Session Reset", "INFO")
-            st.toast("Session cleared!", icon="✅")
-            st.rerun()
+            try:
+                reset_response = requests.post(f"{API_BASE_URL}/reset", timeout=30)
+                if not reset_response.ok:
+                    error_msg = reset_response.json().get("detail", "Backend reset failed")
+                    raise requests.RequestException(f"HTTP {reset_response.status_code}: {error_msg}")
+
+                st.session_state.uploaded_documents = []
+                st.session_state.selected_file = None
+                st.session_state.conversation_history = []
+                st.session_state.latest_response = None
+                st.session_state.logs = []
+                log_action("Session Reset", "INFO")
+                st.toast("Session cleared!", icon="✅")
+                st.rerun()
+            except requests.RequestException as exc:
+                log_action("Session Reset Failed", "ERROR", str(exc))
+                st.toast("✗ Could not clear the backend session", icon="❌")
 
     with col2:
         if st.button("📋 Show Logs", use_container_width=True):

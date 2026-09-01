@@ -17,6 +17,9 @@ class DocumentAgent:
         self.vector_store.add_documents(chunks, metadata)
         return chunks
 
+    def reset(self) -> None:
+        self.vector_store.reset()
+
     def _grounded_context(self, question: str) -> tuple[str, list[dict]]:
         results = self.vector_store.query(question, top_k=3)
         documents = results.get("documents", [[]])[0]
