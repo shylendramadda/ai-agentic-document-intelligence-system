@@ -24,3 +24,15 @@ def test_reset_removes_persisted_documents(tmp_path):
 
     assert reloaded_store.documents == []
     assert reloaded_store.query("Temporary document content")["documents"] == [[]]
+
+
+def test_character_similarity_supports_close_paraphrases(tmp_path):
+    store = VectorKnowledgeStore(tmp_path)
+    store.add_documents(
+        ["The Alpha project is powered by solar panels."],
+        [{"source": "alpha.txt"}],
+    )
+
+    result = store.query("How does the Alpha project get its power?")
+
+    assert result["metadatas"] == [[{"source": "alpha.txt"}]]

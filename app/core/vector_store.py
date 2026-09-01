@@ -14,13 +14,21 @@ class VectorKnowledgeStore:
         self.documents: List[str] = []
         self.metadata: List[dict] = []
         self.vectorizer = TfidfVectorizer(stop_words="english")
+        self.char_vectorizer = TfidfVectorizer(analyzer="char_wb", ngram_range=(3, 5), min_df=1)
         self.matrix = None
+        self.char_matrix = None
         self.index_path = Path(index_dir or settings.index_dir) / "documents.json"
         self._load()
 
     def _rebuild_matrix(self):
         self.vectorizer = TfidfVectorizer(stop_words="english")
-        self.matrix = self.vectorizer.fit_transform(self.documents) if self.documents else None
+        self.char_vectorizer = TfidfVectorizer(analyzer="char_wb", ngram_range=(3, 5), min_df=1)
+        if self.documents:
+            self.matrix = self.vectorizer.fit_transform(self.documents)
+            self.char_matrix = self.char_vectorizer.fit_transform(self.documents)
+        else:
+            self.matrix = None
+            self.char_matrix = None
 
     def _load(self):
         if not self.index_path.exists():
@@ -64,7 +72,11 @@ class VectorKnowledgeStore:
             return {"documents": [[]], "metadatas": [[]], "distances": [[]]}
 
         question_vector = self.vectorizer.transform([question])
-        similarity = cosine_similarity(question_vector, self.matrix).flatten()
+        word_similarity = cosine_similarity(question_vector, self.matrix).flatten()
+        char_similarity = cosine_similarity(
+            self.char_vectorizer.transform([question]), self.char_matrix
+        ).flatten()
+        similarity = (word_similarity * 0.75) + (char_similarity * 0.25)
         query_terms = set(self.vectorizer.build_analyzer()(question))
         required_matches = min(2, len(query_terms))
         ranked_indices = np.argsort(similarity)[::-1]
@@ -72,7 +84,9 @@ class VectorKnowledgeStore:
         for index in ranked_indices:
             document_terms = set(self.vectorizer.build_analyzer()(self.documents[index]))
             matched_terms = len(query_terms & document_terms)
-            if similarity[index] > 0 and matched_terms >= required_matches:
+            lexical_match = matched_terms >= required_matches
+            close_language_match = matched_terms == 0 and similarity[index] >= 0.20
+            if similarity[index] > 0 and (lexical_match or close_language_match):
                 matching_indices.append(index)
             if len(matching_indices) == top_k:
                 break
@@ -91,6 +105,8 @@ class VectorKnowledgeStore:
         self.documents = []
         self.metadata = []
         self.matrix = None
+        self.char_matrix = None
         self.vectorizer = TfidfVectorizer(stop_words="english")
+        self.char_vectorizer = TfidfVectorizer(analyzer="char_wb", ngram_range=(3, 5), min_df=1)
         if self.index_path.exists():
             self.index_path.unlink()
