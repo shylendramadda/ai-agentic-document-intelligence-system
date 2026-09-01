@@ -54,7 +54,7 @@ The AI Agentic Document Intelligence system is a modular, three-tier architectur
 - `read_pdf_file(file_path)` — PDF text extraction using PyMuPDF with Tesseract OCR fallback
 - `read_csv_file(file_path)` — CSV parsing with pandas
 - `read_excel_file(file_path)` — Excel parsing with pandas, openpyxl, and xlrd
-- `chunk_text(text, chunk_size=1000, overlap=100)` — Sliding window chunking
+- `chunk_text(text, chunk_size=500, chunk_overlap=80)` — Paragraph-aware chunking
 - `build_chunks_from_file(file_path)` — End-to-end file→chunks pipeline
 
 **Chunking Strategy**:
@@ -77,7 +77,7 @@ The AI Agentic Document Intelligence system is a modular, three-tier architectur
 **Architecture**: Word and character TF-IDF + Cosine Similarity, persisted as JSON
 
 **Key Functions**:
-- `add_documents(documents: list, source: str)` — Index new chunks
+- `add_documents(documents: list, metadata_list: list | None)` — Index and persist chunks
 - `query(query_text: str, top_k: int = 3)` — Retrieve top-k similar chunks
 - `reset()` — Clear the index
 
@@ -185,11 +185,11 @@ The AI Agentic Document Intelligence system is a modular, three-tier architectur
    └─> POST /upload → backend/main.py
        └─> AgentService.ingest_file("company_policy.pdf")
            ├─> DocumentProcessor.extract_document_text()
-           │   └─> PyPDF2 extracts text from PDF
+           │   └─> PyMuPDF extracts text; Tesseract OCR handles scanned pages
            ├─> DocumentProcessor.chunk_text()
            │   └─> [chunk_1, chunk_2, ..., chunk_n]
-           └─> VectorStore.add_documents([chunks], source="company_policy.pdf")
-               └─> Compute TF-IDF scores and store metadata
+            └─> VectorStore.add_documents([chunks], metadata_list)
+               └─> Compute hybrid TF-IDF scores, store metadata, and persist JSON index
 
 2. User asks: "What is the overtime policy?"
    └─> POST /ask → backend/main.py
@@ -231,10 +231,10 @@ The AI Agentic Document Intelligence system is a modular, three-tier architectur
 - `app_name`: Application identifier
 - `upload_dir`: Directory for temporary uploads (default: `data/uploads/`)
 - `index_dir`: Directory for vector store index (default: `data/indexes/`)
-- `max_upload_size_mb`: File size limit (default: 50 MB)
+- `max_upload_size_mb`: File size limit (default: 20 MB)
 - `allowed_extensions`: Supported file types (`.pdf`, `.txt`, `.csv`, `.xlsx`, `.xls`)
 - `groq_api_key`: Groq API key (from `.env`)
-- `groq_model`: LLM model name (default: `llama-2-70b-chat`)
+- `groq_model`: LLM model name (default: `openai/gpt-oss-120b`, overridable with `GROQ_MODEL`)
 
 **Environment-Based Secrets**:
 - Reads from `.env` file using `pydantic-settings`
@@ -247,16 +247,17 @@ The AI Agentic Document Intelligence system is a modular, three-tier architectur
 
 **Test Coverage**:
 
-| Test                         | Purpose                              |
-| ---------------------------- | ------------------------------------ |
-| `test_document_processor.py` | Verify text extraction and chunking  |
-| `test_vector_store.py`       | Verify TF-IDF indexing and retrieval |
-| `test_agent_service.py`      | Verify end-to-end RAG pipeline       |
+| Test                   | Purpose                                  |
+| ---------------------- | ---------------------------------------- |
+| `test_api.py`          | Verify API, ingestion, reset, and safety |
+| `test_frontend.py`     | Verify Streamlit UI workflows            |
+| `test_start_app.py`    | Verify launcher and port handling        |
+| `test_vector_store.py` | Verify retrieval and persistence         |
 
 **Running Tests**:
 ```bash
 pytest -q
-# Expected: 3 passed in ~1.5s
+# Expected: 26 passed
 ```
 
 ---

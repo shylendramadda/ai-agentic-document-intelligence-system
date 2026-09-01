@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     max_upload_size_mb: int = 20
     allowed_extensions: set[str] = {"pdf", "txt", "csv", "xlsx", "xls"}
     groq_api_key: str = ""
-    groq_model: str = "llama-3.1-8b-instant"
+    groq_model: str = "openai/gpt-oss-120b"
 
     model_config = SettingsConfigDict(env_file=BASE_DIR / ".env", extra="ignore")
 
