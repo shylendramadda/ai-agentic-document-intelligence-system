@@ -7,9 +7,10 @@ An enterprise-grade document Q&A system built on retrieval-augmented generation 
 - **Multi-format ingestion**: PDF, TXT, CSV, and Excel file support (`.xls` and `.xlsx`)
 - **Grounded retrieval**: TF-IDF + cosine similarity for stable, interpretable document matching
 - **Safety-first generation**: LLM answers are constrained to retrieved context; includes explicit "DO NOT HALLUCINATE" prompt
-- **REST API**: FastAPI backend with `/upload` and `/ask` endpoints
+- **REST API**: FastAPI backend with `/upload`, `/ask`, `/reset`, and `/health` endpoints
 - **User-friendly UI**: Streamlit frontend with document history and expanded source citations
-- **Session management**: Track uploaded documents and retrieve sources for every answer
+- **Session management**: Track uploaded documents, conversation history, and sources for every answer
+- **Persistent index**: Save indexed chunks to `data/indexes/documents.json` across restarts
 
 ## Architecture
 
@@ -24,7 +25,7 @@ User Question → [Retrieval Agent] → Similarity Search → Top Chunks
                                               ↓
                         [Grounded Context] + LLM Prompt + Safety Guardrail
                                               ↓
-                                    Groq API (openai/gpt-oss-120b)
+                                    Groq API (configured by `GROQ_MODEL`)
                                               ↓
                                         Grounded Answer + Sources
 ```
@@ -41,6 +42,7 @@ User Question → [Retrieval Agent] → Similarity Search → Top Chunks
 ### Prerequisites
 - Python 3.11+ (verify with `python --version`)
 - A Groq API key (sign up at https://console.groq.com)
+- Tesseract OCR for scanned PDFs (macOS: `brew install tesseract`)
 - Git (optional, if cloning from repository)
 
 ### Step 1: Navigate to Project Directory
@@ -121,7 +123,7 @@ python -m pytest -q
 
 Expected output:
 ```
-3 passed in 1.5s
+26 passed
 ```
 
 ### Step 6: Start the Application
@@ -154,8 +156,8 @@ Open your browser and navigate to:
 
 ### Step 9: Ask a Question
 
-1. In the text area, type your question (e.g., "What is the main topic of this document?")
-2. Click **Ask Question**
+1. In the question input, type your question (e.g., "What is the main topic of this document?")
+2. Click **Submit Question**
 3. Wait for the spinner to complete
 4. Review the answer in the "Answer" box
 5. Click "Supporting sources" expanders to see which document chunks were used
@@ -166,7 +168,7 @@ Open your browser and navigate to:
 - **Metrics**: Shows how many chunks were retrieved and files are indexed
 - **Sources**: Click expanders to see the exact text that supports the answer
 - **Document History**: View all uploaded files in the left sidebar
-- **Clear Session**: Reset and start fresh with new documents
+- **Clear Session**: Reset the document list, conversation history, and backend index
 
 ---
 
@@ -252,6 +254,10 @@ Ask a question about ingested documents.
   }
   ```
 
+### POST `/reset`
+Reset the in-memory and persisted document index.
+- **Response**: `{ "status": "ok", "message": "Document index reset successfully." }`
+
 ### GET `/health`
 Health check endpoint.
 - **Response**: `{ "status": "ok" }`
@@ -260,13 +266,13 @@ Health check endpoint.
 
 1. Upload a document (PDF, TXT, CSV, or Excel)
 2. Click **Upload & Index** to process
-3. Enter a question in the text area
-4. Click **Ask Question**
+3. Enter a question in the compact question input
+4. Click **Submit Question**
 5. Review the grounded answer and expand sources for details
 
 ### Session Features
 - **Document history**: All uploaded files shown in the sidebar
-- **Clear session**: Reset the document list and start fresh
+- **Clear session**: Reset the document list, conversation history, and backend index
 - **Source citations**: Click to expand and read the exact chunks that support the answer
 - **Metrics**: View the number of retrieved chunks and indexed files
 
@@ -304,7 +310,7 @@ pytest -q
 
 Expected output:
 ```
-3 passed in 1.5s
+26 passed
 ```
 
 Tests cover:
@@ -346,7 +352,7 @@ The system enforces grounded answers through:
 ## Future Enhancements
 
 - Integrate advanced embeddings (OpenAI, Sentence Transformers) for semantic search
-- Add multi-turn conversation history
+- Add persistent conversation history across application restarts
 - Implement document summarization
 - Support for more file formats (DOCX, PPT, JSON)
 - Fine-tuning the LLM on domain-specific data

@@ -19,6 +19,7 @@ The AI Agentic Document Intelligence system is a modular, three-tier architectur
 │  FastAPI Server (backend/main.py)                               │
 │  ├─ POST /upload → Document ingestion                           │
 │  ├─ POST /ask → Question answering                              │
+│  ├─ POST /reset → Clear document index                           │
 │  └─ GET /health → Service status                                │
 └──────────────────────┬──────────────────────────────────────────┘
                        │
@@ -50,22 +51,22 @@ The AI Agentic Document Intelligence system is a modular, three-tier architectur
 
 **Key Functions**:
 - `extract_document_text(file_path)` — Detect file type and extract text
-- `read_pdf_file(file_path)` — PDF text extraction using PyPDF2
+- `read_pdf_file(file_path)` — PDF text extraction using PyMuPDF with Tesseract OCR fallback
 - `read_csv_file(file_path)` — CSV parsing with pandas
-- `read_excel_file(file_path)` — Excel parsing with openpyxl
+- `read_excel_file(file_path)` — Excel parsing with pandas, openpyxl, and xlrd
 - `chunk_text(text, chunk_size=1000, overlap=100)` — Sliding window chunking
 - `build_chunks_from_file(file_path)` — End-to-end file→chunks pipeline
 
 **Chunking Strategy**:
-- **Size**: 1000 characters per chunk
-- **Overlap**: 100 characters to preserve context across boundaries
+- **Size**: 500 characters per chunk
+- **Overlap**: 80 characters to preserve context across boundaries
 - **Rationale**: Balances retrieval granularity with context preservation
 
 **Supported Formats**:
-- PDF (via PyPDF2)
+- PDF (via PyMuPDF; Tesseract OCR for scanned pages)
 - Plain text (.txt)
 - CSV (via pandas)
-- Excel (.xlsx, .xls via openpyxl)
+- Excel (.xlsx via openpyxl, .xls via xlrd)
 
 ---
 
@@ -73,7 +74,7 @@ The AI Agentic Document Intelligence system is a modular, three-tier architectur
 
 **Purpose**: Store and retrieve document chunks using similarity search.
 
-**Architecture**: TF-IDF + Cosine Similarity
+**Architecture**: Word and character TF-IDF + Cosine Similarity, persisted as JSON
 
 **Key Functions**:
 - `add_documents(documents: list, source: str)` — Index new chunks
@@ -88,7 +89,7 @@ The AI Agentic Document Intelligence system is a modular, three-tier architectur
 5. **Reliability**: Statistical approach proven in information retrieval
 
 **Limitations**:
-- Lexical match only (does not capture semantic similarity well)
+- Primarily lexical matching; character n-grams improve close wording and paraphrases
 - Scales poorly with very large collections (millions of documents)
 - Requires careful stemming/normalization for consistent results
 
@@ -150,6 +151,7 @@ The AI Agentic Document Intelligence system is a modular, three-tier architectur
 | GET    | `/health` | None                     | `{ "status": "ok" }`                                            |
 | POST   | `/upload` | Multipart file           | `{ "message": "...", "chunks": N }`                             |
 | POST   | `/ask`    | `{ "question": string }` | `{ "answer": string, "sources": [...], "retrieved_chunks": N }` |
+| POST   | `/reset`  | None                     | `{ "status": "ok", "message": "..." }`                          |
 
 **Error Handling**:
 - 400: Invalid input (e.g., unsupported file type)
@@ -164,12 +166,13 @@ The AI Agentic Document Intelligence system is a modular, three-tier architectur
 **Key Features**:
 - **File Uploader**: Drag-drop interface for PDF, TXT, CSV, Excel
 - **Upload & Index**: Synchronous upload with spinner feedback
-- **Question Input**: Text area for natural-language questions
+- **Question Input**: Compact text input for natural-language questions
 - **Document History**: Sidebar showing all uploaded files
 - **Session Management**: Clear session button to reset state
-- **Answer Display**: Info box with the grounded response
+- **Answer Display**: Grounded response with question context, metrics, and source evidence
 - **Metrics**: Count of retrieved chunks and indexed files
 - **Source Expansion**: Expandable sections showing retrieved chunks with source attribution
+- **Conversation History**: Timestamped questions, answers, and supporting sources
 
 ---
 
