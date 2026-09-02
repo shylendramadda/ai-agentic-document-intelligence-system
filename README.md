@@ -54,7 +54,10 @@ User Question → [Retrieval Agent] → Similarity Search → Top Chunks
 ### Prerequisites
 - Python 3.11+ (verify with `python --version`)
 - A Groq API key (sign up at https://console.groq.com)
-- Tesseract OCR for scanned PDFs (macOS: `brew install tesseract`)
+- Tesseract OCR for scanned PDFs:
+  - **macOS**: `brew install tesseract`
+  - **Linux (Debian/Ubuntu)**: `sudo apt-get install tesseract-ocr`
+  - **Windows**: Install from https://github.com/UB-Mannheim/tesseract/wiki, then add the install folder (e.g. `C:\Program Files\Tesseract-OCR`) to your `PATH`
 - Git (optional, if cloning from repository)
 
 ### Step 1: Navigate to Project Directory
@@ -140,16 +143,41 @@ Expected output:
 
 ### Step 6: Start the Application
 
-Launch the backend and Streamlit frontend together:
+> **Important:** Run this with the **same Python that has the dependencies installed** — i.e. the activated virtual environment from Step 2. `start_app.py` launches the backend and frontend using `sys.executable`, so if you run it with a different (system) Python that lacks `uvicorn`/`streamlit`, the backend crashes and the browser shows `ERR_CONNECTION_REFUSED` on port 8501.
+
+**With the virtual environment activated (recommended):**
 ```bash
 python start_app.py
 ```
 
+**Or call the venv's Python directly (no activation needed):**
+
+macOS / Linux:
+```bash
+.venv/bin/python start_app.py
+```
+
+Windows (PowerShell / Command Prompt):
+```powershell
+.venv\Scripts\python.exe start_app.py
+```
+
 You'll see output similar to:
 ```
-[INFO] Starting FastAPI backend on http://localhost:8000
-[INFO] Starting Streamlit frontend on http://localhost:8501
+Backend: http://127.0.0.1:8000
+Frontend: http://127.0.0.1:8501
 ```
+
+> **First-run note:** On the very first launch, Streamlit may prompt for an email on the terminal (`Email:`). Press **Enter** to skip it. To avoid this prompt entirely (useful for non-interactive/background launches), create an empty credentials file first:
+>
+> macOS / Linux:
+> ```bash
+> mkdir -p ~/.streamlit && printf '[general]\nemail = ""\n' > ~/.streamlit/credentials.toml
+> ```
+> Windows (PowerShell):
+> ```powershell
+> mkdir "$env:USERPROFILE\.streamlit" -Force; Set-Content "$env:USERPROFILE\.streamlit\credentials.toml" "[general]`nemail = `"`""
+> ```
 
 ### Step 7: Open the Web UI
 
@@ -186,25 +214,43 @@ Open your browser and navigate to:
 
 ## Quick Reference Commands
 
-| Task                   | Command                            |
-| ---------------------- | ---------------------------------- |
-| Activate environment   | `source .venv/bin/activate`        |
-| Deactivate environment | `deactivate`                       |
-| Start application      | `python start_app.py`              |
-| Run tests              | `pytest -q`                        |
-| View API docs          | Visit `http://localhost:8000/docs` |
-| Stop backend           | Press `Ctrl+C` in terminal         |
+| Task                          | Command                                                        |
+| ----------------------------- | -------------------------------------------------------------- |
+| Activate environment (macOS/Linux) | `source .venv/bin/activate`                               |
+| Activate environment (Windows PS)  | `.venv\Scripts\Activate.ps1`                             |
+| Deactivate environment        | `deactivate`                                                   |
+| Start application             | `python start_app.py`                                          |
+| Start without activating (macOS/Linux) | `.venv/bin/python start_app.py`                       |
+| Start without activating (Windows)     | `.venv\Scripts\python.exe start_app.py`               |
+| Run tests                     | `pytest -q`                                                    |
+| View API docs                 | Visit `http://localhost:8000/docs`                             |
+| Stop backend                  | Press `Ctrl+C` in terminal                                     |
 
 ---
 
 ## Troubleshooting
 
-### Issue: "ModuleNotFoundError: No module named..."
-**Solution**: Ensure virtual environment is activated (see Step 2) and dependencies are installed (Step 3).
+### Issue: "ModuleNotFoundError: No module named..." / browser shows `ERR_CONNECTION_REFUSED`
+**Cause**: You're running `start_app.py` with a Python that doesn't have the dependencies (commonly the system Python instead of the virtual environment). The backend then crashes and the frontend never starts.
+**Solution**: Activate the virtual environment first (see Step 2), or run `start_app.py` with the venv's Python directly.
 ```bash
-source .venv/bin/activate
-pip install -r requirements.txt
+# macOS / Linux
+source .venv/bin/activate && pip install -r requirements.txt
+python start_app.py
+# ...or, without activating:
+.venv/bin/python start_app.py
 ```
+```powershell
+# Windows
+.venv\Scripts\Activate.ps1 ; pip install -r requirements.txt
+python start_app.py
+# ...or, without activating:
+.venv\Scripts\python.exe start_app.py
+```
+
+### Issue: Frontend exits immediately / stuck on Streamlit `Email:` prompt
+**Cause**: On first run Streamlit asks for an email on the terminal; in a non-interactive launch this makes the frontend exit.
+**Solution**: Press **Enter** at the prompt, or pre-create an empty credentials file (see the First-run note in Step 6).
 
 ### Issue: "GROQ_API_KEY not found"
 **Solution**: Verify `.env` file exists and contains `GROQ_API_KEY=<your-key>`.
